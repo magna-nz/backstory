@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Backstory.Core\Backstory.Core.csproj" />
+    <ProjectReference Include="..\Backstory.Storage\Backstory.Storage.csproj" />
+    <ProjectReference Include="..\Backstory.Embeddings\Backstory.Embeddings.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+.vs/
+
+# Build / publish
+publish/
+artifacts/
+*.binlog
+
+# Backstory local data (never commit personal exports or DBs)
+*.db
+*.db-shm
+*.db-wal
+*.onnx
+/data/
+/vaults/
+**/exports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rider / IDE
+.idea/
+*.sln.DotSettings.user

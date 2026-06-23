@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/eval/">
+    <Project Path="eval/Backstory.Eval/Backstory.Eval.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Backstory.Adapters/Backstory.Adapters.csproj" />
+    <Project Path="src/Backstory.Cli/Backstory.Cli.csproj" />
+    <Project Path="src/Backstory.Core/Backstory.Core.csproj" />
+    <Project Path="src/Backstory.Embeddings/Backstory.Embeddings.csproj" />
+    <Project Path="src/Backstory.Mcp/Backstory.Mcp.csproj" />
+    <Project Path="src/Backstory.Query/Backstory.Query.csproj" />
+    <Project Path="src/Backstory.Storage/Backstory.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Backstory.Tests/Backstory.Tests.csproj" />
+  </Folder>
+</Solution>
