@@ -7,6 +7,7 @@
     <ProjectReference Include="..\Backstory.Embeddings\Backstory.Embeddings.csproj" />
     <ProjectReference Include="..\Backstory.Query\Backstory.Query.csproj" />
     <ProjectReference Include="..\Backstory.Mcp\Backstory.Mcp.csproj" />
+    <ProjectReference Include="..\..\eval\Backstory.Eval\Backstory.Eval.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
