@@ -25,7 +25,7 @@ public static class BackstoryMcpServer
         builder.Services.AddSingleton<IEventStore>(sp => new SqliteEventStore(sp.GetRequiredService<SqliteDatabase>()));
         builder.Services.AddSingleton<IEntityStore>(sp => new SqliteEntityStore(sp.GetRequiredService<SqliteDatabase>()));
         builder.Services.AddSingleton<IVectorStore>(sp => new BruteForceVectorStore(sp.GetRequiredService<SqliteDatabase>()));
-        builder.Services.AddSingleton<IEmbeddingService>(new HashingEmbeddingService());
+        builder.Services.AddSingleton<IEmbeddingService>(EmbeddingFactory.Create().Service);
         builder.Services.AddSingleton<HybridSearch>();
 
         builder.Services

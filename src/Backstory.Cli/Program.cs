@@ -25,7 +25,7 @@ db.EnsureCreated();
 var events = new SqliteEventStore(db);
 var entities = new SqliteEntityStore(db);
 var vectors = new BruteForceVectorStore(db);
-var embeddings = new HashingEmbeddingService();
+var (embeddings, embedderName) = EmbeddingFactory.Create();
 
 switch (command)
 {
@@ -44,6 +44,8 @@ switch (command)
         return 0;
     case "eval":
         return await RunEval();
+    case "model":
+        return await Model();
     default:
         Console.Error.WriteLine($"Unknown command '{command}'.");
         PrintUsage();
@@ -72,7 +74,7 @@ async Task<int> Import()
         return 1;
     }
 
-    Console.WriteLine($"Importing with '{adapter.Source}' adapter…");
+    Console.WriteLine($"Importing with '{adapter.Source}' adapter (embedder: {embedderName})…");
     var pipeline = new IngestionPipeline(events, entities, embeddings, vectors);
     var stats = await pipeline.ImportAsync(adapter, path);
 
@@ -153,6 +155,7 @@ async Task<int> Stats()
     }
 
     Console.WriteLine($"Vault: {dbPath}");
+    Console.WriteLine($"Embedder: {embedderName}");
     Console.WriteLine($"Total events: {bySource.Values.Sum()}");
     foreach (var (source, count) in bySource.OrderByDescending(kv => kv.Value))
         Console.WriteLine($"  {source,-18} {count}");
@@ -162,9 +165,34 @@ async Task<int> Stats()
     return 0;
 }
 
+async Task<int> Model()
+{
+    var sub = positional.Count > 0 ? positional[0] : "";
+    if (sub != "fetch")
+    {
+        Console.Error.WriteLine("usage: backstory model fetch   # download the semantic embedding model");
+        return 1;
+    }
+
+    var dir = EmbeddingFactory.DefaultModelDir();
+    Console.WriteLine("Fetching all-MiniLM-L6-v2 (this is the only network access Backstory makes)…");
+    try
+    {
+        await ModelDownloader.FetchAsync(dir, Console.WriteLine);
+        Console.WriteLine("Done. Re-import your exports to re-embed them with the semantic model.");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Download failed: {ex.Message}");
+        return 1;
+    }
+}
+
 async Task<int> RunEval()
 {
     var report = await new EvalRunner().RunAsync();
+    Console.WriteLine($"Embedder           : {report.Embedder}");
     Console.WriteLine($"Ingestion coverage : {report.IngestionCoverage:P1}  ({report.EventsEmitted}/{report.EventsExpected} events)");
     Console.WriteLine($"Retrieval Recall@5 : {report.RecallAt5:P1}  ({report.Hits}/{report.Questions} questions)");
     return 0;
@@ -227,6 +255,7 @@ static void PrintUsage()
           backstory stats
           backstory serve            # run the MCP server (stdio)
           backstory eval             # run the benchmark
+          backstory model fetch      # download the semantic embedding model (one-time, opt-in)
 
         Vault location: $BACKSTORY_DB or ~/.backstory/backstory.db
         """);

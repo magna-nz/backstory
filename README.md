@@ -19,13 +19,13 @@ semantic + keyword search, resolves people and places across sources, and expose
 
 Run `backstory eval` (or `dotnet run --project eval/Backstory.Eval`) to reproduce:
 
-| Metric | Result |
-|---|---|
-| Ingestion coverage (events parsed vs. present) | **100%** |
-| Retrieval Recall@5 (hybrid search) | **87.5%** |
+| Embedder | Ingestion coverage | Recall@5 |
+|---|---|---|
+| Hashing (default, offline, zero setup) | **100%** | **87.5%** |
+| ONNX MiniLM (after `backstory model fetch`) | **100%** | **100%** |
 
-> Recall is measured with the default offline hashing embedder (see *Embeddings* below); the
-> MiniLM/ONNX upgrade is a drop-in that raises semantic quality further.
+The semantic model resolves paraphrases the lexical embedder can't — e.g. *"japan vacation"* finds
+*"flight to Tokyo"* with no shared words.
 
 ## Install / build
 
@@ -51,6 +51,10 @@ backstory search "trip to japan" --from 2023-01-01 --source telegram
 backstory timeline --limit 20
 backstory entity "Sarah K"
 backstory stats
+
+# Upgrade to semantic embeddings (one-time, opt-in ~90 MB download)
+backstory model fetch
+# then re-import your exports to re-embed them with the semantic model
 
 # Run the benchmark
 backstory eval
@@ -148,10 +152,17 @@ the roadmap.
 
 ## Embeddings
 
-The default embedder is a dependency-free, fully offline hashing embedder — deterministic and zero
-model assets, so everything runs out of the box. It is lexical rather than deeply semantic. A
-MiniLM-via-ONNX implementation of the same `IEmbeddingService` (same 384-dim vectors) is the planned
-quality upgrade and slots in without touching the rest of the system.
+Backstory ships two embedders behind one `IEmbeddingService` interface (both 384-dim, so they're
+interchangeable):
+
+- **Hashing** (default) — dependency-free, fully offline, deterministic, zero model assets. Lexical:
+  it matches shared words/characters. Everything works out of the box with this.
+- **ONNX MiniLM** (`all-MiniLM-L6-v2`) — true semantic embeddings run locally via ONNX Runtime. Run
+  `backstory model fetch` once (~90 MB) and it's selected automatically. Matches *meaning*, not just
+  words, which is what lifts Recall@5 to 100% on the benchmark.
+
+Switching is just fetching the model; for a multilingual corpus, drop in a multilingual MiniLM — same
+code.
 
 ## Privacy
 

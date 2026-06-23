@@ -5,53 +5,54 @@ _Last updated: 2026-06-23_
 ## What was built
 
 Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**. Complete, building,
-15 tests passing, benchmark runnable.
+**19 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
 
 - **Solution** (`Backstory.slnx`): Core, Adapters, Storage, Embeddings, Query, Mcp, Cli + Eval + Tests.
 - **Adapters**: `TelegramAdapter` (full + single-chat JSON), `GoogleTakeoutAdapter` (Search, YouTube,
-  Maps saved places, Semantic Location History). Defensive parsing — a bad/absent file is skipped.
-- **Storage**: SQLite via `Microsoft.Data.Sqlite` — events + FTS5 keyword index, entities + aliases,
-  `BruteForceVectorStore` (cosine over in-memory float32).
-- **Embeddings**: `HashingEmbeddingService` — offline, deterministic, 384-dim, zero assets.
-- **Pipeline + query**: `IngestionPipeline` (idempotent via content-hash ids), `HybridSearch`
-  (semantic + keyword fused with Reciprocal Rank Fusion, then filtered).
-- **CLI**: import / search / timeline / entity / stats / serve / eval (hand-rolled arg parser).
-- **MCP server**: `ModelContextProtocol` 1.4.0 over stdio, 5 tools. Verified booting + handling
-  initialize/tools-list.
-- **Benchmark** (`backstory eval`): **100% ingestion coverage**, **87.5% Recall@5**.
+  Maps saved places, Semantic Location History). Defensive parsing.
+- **Storage**: SQLite — events + FTS5 keyword index, entities + aliases, `BruteForceVectorStore`.
+- **Embeddings**: two services behind `IEmbeddingService` (both 384-dim) —
+  - `HashingEmbeddingService` (default, offline, deterministic, zero assets)
+  - `OnnxEmbeddingService` (all-MiniLM-L6-v2 via ONNX Runtime + BERT tokenizer, mean-pooled),
+    selected automatically by `EmbeddingFactory` when the model is present.
+  - `ModelDownloader` + `backstory model fetch` (opt-in ~90 MB download — the only network access).
+- **Pipeline + query**: `IngestionPipeline` (idempotent), `HybridSearch` (semantic + keyword via RRF).
+- **CLI**: import / search / timeline / entity / stats / serve / eval / model fetch.
+- **MCP server**: `ModelContextProtocol` 1.4.0 over stdio, 5 tools.
+- **Benchmark** (`backstory eval`):
+  - Hashing: **100% coverage, 87.5% Recall@5**
+  - ONNX MiniLM: **100% coverage, 100% Recall@5** (validated end-to-end with a real model download)
 
 ## Decisions made
 
-- **Hashing embedder as the v1 default** instead of ONNX/MiniLM. Rationale: fully offline, zero model
-  assets, deterministic, keeps the build/tests/benchmark self-contained. Lexical not deeply semantic;
-  MiniLM is a drop-in behind `IEmbeddingService` at the same dimension. **This is the main deviation
-  from SPEC §10** — flagged deliberately, not silent.
-- **Hand-rolled CLI arg parser** instead of `System.CommandLine` (SPEC §14) — avoids a beta-API
-  dependency for a handful of commands. Easy to swap later.
-- **Brute-force vectors** (per SPEC) — right for personal scale; `IVectorStore` allows sqlite-vec/HNSW.
-- **SQLitePCLRaw bundle pinned to 3.0.3** to clear a security advisory (NU1903) under warnings-as-errors.
-- **.NET 10** (installed SDK), `.slnx` solution format.
+- **Two embedders, factory-selected.** Hashing is the zero-setup default so the project works offline
+  with no assets; ONNX MiniLM is the opt-in quality upgrade (`model fetch`). Same 384-dim interface,
+  so they're interchangeable. ONNX inference verified live — R@5 went 87.5% → 100%.
+- **Hand-rolled CLI arg parser** instead of `System.CommandLine` — avoids a beta dependency.
+- **Brute-force vectors** — right for personal scale; `IVectorStore` allows sqlite-vec/HNSW later.
+- **SQLitePCLRaw pinned to 3.0.3** to clear a security advisory (NU1903) under warnings-as-errors.
+- **Model source**: model.onnx from `Xenova/all-MiniLM-L6-v2`, vocab from `sentence-transformers/...`.
+- **.NET 10**, `.slnx` solution format.
 
 ## Where we left off
 
-Wave 5 complete. Full v1 built end-to-end, verified via CLI smoke test (cross-source ranked search
-working) and MCP boot test. Work is on branch `feature/backstory-v1`, **uncommitted** since the Wave 1
-scaffold commit — awaiting the user's call on committing.
+ONNX embedder built, wired into CLI/MCP/eval, and validated against a live model download. README +
+STATUS updated with the two-embedder benchmark. All on `main`, pushed to GitHub. Building the
+technical docs site for GitHub Pages next.
 
 ## What's next
 
-1. **ONNX/MiniLM embedder** — biggest quality lever; raises semantic recall. Same interface.
-2. **MCP server lifecycle** — exit cleanly on stdin EOF (currently lingers until killed).
-3. **More Takeout types** (Gmail, Calendar, Photos metadata) and **more adapters** (Instagram, Spotify).
-4. **"What do they know about you" audit report** and **"your life in <period>"** views (roadmap pull).
+1. **MCP server lifecycle** — exit cleanly on stdin EOF (currently lingers until killed).
+2. **More Takeout types** (Gmail, Calendar, Photos metadata) and **more adapters** (Instagram, Spotify).
+3. **"What do they know about you" audit report** and **"your life in <period>"** views.
+4. **Batched ONNX inference** during import for speed (currently one text at a time).
 5. Smarter cross-source entity resolution (v1 is deterministic alias/name/phone matching).
 
 ## Gotchas
 
-- **Google Location History** is often thin/absent in Takeout now (moved on-device) — don't anchor
-  demos on `location_visit`.
+- **Google Location History** is often thin/absent in Takeout now (moved on-device).
 - **Telegram message text** can be a string or an array of parts; `JsonX.FlattenText` handles both.
-- **Maps saved places** often lack a date → emitted as Place *entities* only (no timeline event).
-- **MCP stdout** is block-buffered when redirected; to see responses in a manual test, drive it with a
-  real MCP client rather than piping + killing.
-- The one Recall@5 miss is an ambiguous gold-marker ("Tokyo" appears in 3 fixtures), not a search bug.
+- **ONNX model** lives at `~/.backstory/models/all-MiniLM-L6-v2/`; delete it to fall back to hashing.
+  Re-import after fetching to re-embed existing events with the semantic model.
+- **MCP stdout** is block-buffered when redirected; drive it with a real MCP client to see responses.
+- Gemini reviews were skipped throughout — no `GEMINI_API_KEY` set.

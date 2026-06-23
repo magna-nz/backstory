@@ -6,7 +6,7 @@ using Backstory.Storage;
 
 namespace Backstory.Eval;
 
-public sealed record EvalReport(double IngestionCoverage, int EventsEmitted, int EventsExpected, double RecallAt5, int Questions, int Hits);
+public sealed record EvalReport(string Embedder, double IngestionCoverage, int EventsEmitted, int EventsExpected, double RecallAt5, int Questions, int Hits);
 
 /// <summary>
 /// Self-contained benchmark: ingests bundled fixture exports and measures (1) ingestion coverage
@@ -59,7 +59,7 @@ public sealed class EvalRunner
             var events = new SqliteEventStore(db);
             var entities = new SqliteEntityStore(db);
             var vectors = new BruteForceVectorStore(db);
-            var embeddings = new HashingEmbeddingService();
+            var (embeddings, embedderName) = EmbeddingFactory.Create();
             var pipeline = new IngestionPipeline(events, entities, embeddings, vectors);
 
             WriteFixtures(dir);
@@ -80,7 +80,7 @@ public sealed class EvalRunner
                 if (results.Any(r => r.Event.Id == goldId)) hits++;
             }
 
-            return new EvalReport(coverage, emitted, expected, (double)hits / Questions.Length, Questions.Length, hits);
+            return new EvalReport(embedderName, coverage, emitted, expected, (double)hits / Questions.Length, Questions.Length, hits);
         }
         finally
         {
