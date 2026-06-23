@@ -101,7 +101,11 @@ flowchart TD
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Runs on **Linux**, **macOS**, and
 **Windows** — it's pure .NET.
 
-1. **Build it.**
+1. **Install it** as a .NET global tool:
+   ```bash
+   dotnet tool install -g Backstory --prerelease
+   ```
+   …or build from source:
    ```bash
    git clone https://github.com/magna-nz/backstory && cd backstory
    dotnet build Backstory.slnx -c Release

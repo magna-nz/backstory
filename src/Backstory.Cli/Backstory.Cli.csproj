@@ -15,6 +15,31 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>backstory</ToolCommandName>
+    <PackageId>Backstory</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>magna-nz</Authors>
+    <Description>Local-first explorer that turns your data exports (Google Takeout, Telegram) into one searchable timeline of your life, queryable from a CLI or any AI agent over MCP. Hybrid semantic + keyword search, offline by default with an opt-in ONNX semantic embedder. Zero cloud, zero API calls.</Description>
+    <PackageTags>mcp;mcp-server;model-context-protocol;personal-data;data-export;google-takeout;telegram;semantic-search;local-first;dotnet-tool;net10;privacy;ai-agent;claude</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/magna-nz/backstory</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/magna-nz/backstory</PackageProjectUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <!-- This is a desktop CLI. ONNX Runtime ships native libs for every RID (Android .aar ~44 MB,
+       iOS .xcframework ~53 MB, wasm, …); drop the mobile/web ones so the tool package stays lean. -->
+  <Target Name="TrimNonDesktopRuntimes" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', 'runtimes[\\/](android|ios|maccatalyst|tvos|browser)'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>
