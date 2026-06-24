@@ -81,4 +81,27 @@ public class SpotifyInstagramAdapterTests
         Assert.Contains(events, e => e.SubType == "instagram_message" && e.Text == "see you at the café");
         Assert.Contains(entities, e => e.Kind == EntityKind.Person && e.CanonicalName == "Alex");
     }
+
+    [Fact]
+    public async Task Instagram_parses_posts_comments_and_searches()
+    {
+        using var tmp = new TempDir();
+        tmp.Write(Path.Combine("content", "posts_1.json"), """
+            [ { "media": [ { "uri": "x.jpg", "creation_timestamp": 1710444720 } ],
+                "title": "sunset at the beach", "creation_timestamp": 1710444720 } ]
+            """);
+        tmp.Write(Path.Combine("comments", "post_comments_1.json"), """
+            [ { "string_map_data": { "Comment": { "value": "love this", "timestamp": 1710444800 },
+                                     "Media Owner": { "value": "friend" } } } ]
+            """);
+        tmp.Write(Path.Combine("searches", "word_or_phrase_searches.json"), """
+            { "searches_keyword": [ { "string_map_data": { "Search": { "value": "ramen tokyo", "timestamp": 1710444900 } } } ] }
+            """);
+
+        var events = (await Collect(new InstagramAdapter(), tmp.Path)).OfType<EventItem>().Select(e => e.Event).ToList();
+
+        Assert.Contains(events, e => e.SubType == "instagram_post" && e.Text.Contains("sunset"));
+        Assert.Contains(events, e => e.SubType == "instagram_comment" && e.Text.Contains("love this"));
+        Assert.Contains(events, e => e.SubType == "instagram_search" && e.Text.Contains("ramen tokyo"));
+    }
 }

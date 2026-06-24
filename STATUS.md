@@ -5,13 +5,14 @@ _Last updated: 2026-06-23_
 ## What was built
 
 Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**. Complete, building,
-**26 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
+**27 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
 
 - **Solution** (`Backstory.slnx`): Core, Adapters, Storage, Embeddings, Query, Mcp, Cli + Eval + Tests.
 - **Adapters**: `TelegramAdapter` (messages, contacts), `GoogleTakeoutAdapter` (Search, YouTube,
   Maps saved places, Semantic Location History), `SpotifyAdapter` (extended + account-data streaming
-  history, podcasts, searches), `InstagramAdapter` (direct messages, with Latin-1/UTF-8 mojibake
-  repair). Defensive parsing. Auto-detected on import; `fetch` covers all four.
+  history, podcasts, searches), `InstagramAdapter` (direct messages, posts, comments, searches;
+  Latin-1/UTF-8 mojibake repair; handles Meta's string_map_data shape generically). Defensive
+  parsing. Auto-detected on import; `fetch` covers all four.
 - **Storage**: SQLite — events + FTS5 keyword index, entities + aliases, `BruteForceVectorStore`.
 - **Embeddings**: two services behind `IEmbeddingService` (both 384-dim) —
   - `HashingEmbeddingService` (default, offline, deterministic, zero assets)

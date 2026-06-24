@@ -162,7 +162,7 @@ Each source is a small adapter that turns an export into events. Here is what wo
 | Google Takeout | Search history, YouTube history, saved places, location history | `backstory fetch google` |
 | Telegram | Messages, contacts | `backstory fetch telegram` |
 | Spotify | Listening history, podcasts, searches | `backstory fetch spotify` |
-| Instagram | Direct messages | `backstory fetch instagram` |
+| Instagram | Direct messages, posts, comments, searches | `backstory fetch instagram` |
 
 Adding a new source means writing one adapter. Nothing else changes.
 
