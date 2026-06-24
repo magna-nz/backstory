@@ -26,10 +26,10 @@ Nothing is sent to the cloud. Your data stays in a SQLite file on your machine. 
 
 You need the .NET 10 SDK. It runs on Linux, macOS, and Windows.
 
-Install as a global tool (once the first release is published):
+Install as a global tool:
 
 ```bash
-dotnet tool install -g Backstory --prerelease
+dotnet tool install -g Backstory
 ```
 
 Or build from source today:
