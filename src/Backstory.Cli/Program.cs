@@ -76,8 +76,11 @@ async Task<ImportStats?> ImportPath(string path, string requested)
     var importPath = path;
     if (File.Exists(path) && path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
     {
-        Console.WriteLine($"Extracting {Path.GetFileName(path)}…");
-        importPath = ExportFiles.ExtractZip(path, Path.Combine(Path.GetDirectoryName(dbPath)!, "imports"));
+        var parts = ExportFiles.ZipGroup(path);
+        Console.WriteLine(parts.Count > 1
+            ? $"Merging {parts.Count} Takeout parts…"
+            : $"Extracting {Path.GetFileName(path)}…");
+        importPath = ExportFiles.ExtractZips(parts, Path.Combine(Path.GetDirectoryName(dbPath)!, "imports"));
     }
 
     ISourceAdapter[] adapters = [new GoogleTakeoutAdapter(), new TelegramAdapter()];

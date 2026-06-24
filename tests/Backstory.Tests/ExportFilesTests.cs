@@ -38,7 +38,7 @@ public class ExportFilesTests
         var zip = Path.Combine(tmp.Path, "takeout-test.zip");
         ZipFile.CreateFromDirectory(src, zip);
 
-        var dest = ExportFiles.ExtractZip(zip, Path.Combine(tmp.Path, "imports"));
+        var dest = ExportFiles.ExtractZips([zip], Path.Combine(tmp.Path, "imports"));
 
         var adapter = new GoogleTakeoutAdapter();
         Assert.True(adapter.CanHandle(dest));
@@ -48,5 +48,37 @@ public class ExportFilesTests
             if (item is EventItem e) events.Add(e.Event);
 
         Assert.Contains(events, e => e.SubType == "search_query" && e.Text.Contains("ramen"));
+    }
+
+    [Fact]
+    public async Task Multipart_takeout_zips_merge_into_one_import()
+    {
+        using var tmp = new TempDir();
+
+        // Part 1 holds Search; part 2 holds YouTube. They share a directory tree once merged.
+        var p1 = Path.Combine(tmp.Path, "p1", "My Activity", "Search");
+        Directory.CreateDirectory(p1);
+        File.WriteAllText(Path.Combine(p1, "MyActivity.json"),
+            """[ { "header": "Search", "title": "Searched for ramen", "time": "2024-03-10T12:00:00Z" } ]""");
+
+        var p2 = Path.Combine(tmp.Path, "p2", "YouTube and YouTube Music", "history");
+        Directory.CreateDirectory(p2);
+        File.WriteAllText(Path.Combine(p2, "watch-history.json"),
+            """[ { "header": "YouTube", "title": "Watched Tokyo vlog", "time": "2024-03-11T12:00:00Z" } ]""");
+
+        ZipFile.CreateFromDirectory(Path.Combine(tmp.Path, "p1"), Path.Combine(tmp.Path, "takeout-acct-001.zip"));
+        ZipFile.CreateFromDirectory(Path.Combine(tmp.Path, "p2"), Path.Combine(tmp.Path, "takeout-acct-002.zip"));
+
+        var group = ExportFiles.ZipGroup(Path.Combine(tmp.Path, "takeout-acct-001.zip"));
+        Assert.Equal(2, group.Count);
+
+        var dest = ExportFiles.ExtractZips(group, Path.Combine(tmp.Path, "imports"));
+
+        var events = new List<Event>();
+        await foreach (var item in new GoogleTakeoutAdapter().ParseAsync(dest))
+            if (item is EventItem e) events.Add(e.Event);
+
+        Assert.Contains(events, e => e.SubType == "search_query");
+        Assert.Contains(events, e => e.SubType == "youtube_watch");
     }
 }

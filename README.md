@@ -1,140 +1,80 @@
 # Backstory
 
-### Your data exports, finally searchable — and entirely on **your** machine.
+Search your own data exports from one place, on your own machine.
 
 [![CI](https://github.com/magna-nz/backstory/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/magna-nz/backstory/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-005FBA)](https://modelcontextprotocol.io/)
-[![Platforms](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-success)](#use-it-in-3-steps)
-[![Recall@5](https://img.shields.io/badge/Recall%405-100%25-0f6e56)](#benchmark)
+[![Platforms](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-success)](#quick-start)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-magna--nz.github.io-0f6e56)](https://magna-nz.github.io/backstory/)
 
-> **MIT-licensed, local-first explorer that turns your data exports into one searchable timeline of
-> your life — queryable from a CLI or any AI agent over [MCP](https://modelcontextprotocol.io/).**
->
-> ✅ **Google Takeout** &nbsp;·&nbsp; ✅ **Telegram** &nbsp;·&nbsp; ✅ **semantic + keyword search** &nbsp;·&nbsp; ✅ **zero cloud, zero API calls**
->
-> Your most personal data never leaves your machine — local-first isn't a feature here, it's the point.
+You can download your data from Google, Telegram, and most other services. The problem is what you get back: a pile of JSON and CSV files that are nearly impossible to read. Backstory pulls those exports into one local database and lets you search across all of them at once. You can search from the command line or connect it to an AI assistant over MCP.
 
-Every service offers "download your data," but it comes back as an unbrowsable pile of JSON/CSV.
-Backstory ingests those exports through per-source adapters into one normalized timeline, indexes it
-for hybrid semantic + keyword search, resolves people and places across sources, and exposes it all to
-agents over MCP. Instead of grepping a 5&nbsp;GB Takeout folder, you just *ask*.
+Nothing is sent to the cloud. Your data stays in a SQLite file on your machine. That is the main reason this tool exists, since this is the most personal data you have.
 
-Two adapters today (Google Takeout, Telegram), a unified `Event`/`Entity` model, an offline default
-embedder plus an opt-in semantic one, and a benchmark that hits **100% ingestion coverage / 100%
-Recall@5**.
+## What it can do
 
-## See it in action
+- Import Google Takeout and Telegram exports (more sources later).
+- Search everything as one timeline, by meaning or by keyword.
+- Match the same person or place across different sources.
+- Answer questions from an AI agent, like "when did I last message Sarah about dinner?".
+- Show you how to export your data, then import it automatically when it finishes downloading.
+- Report a benchmark so you can see how well the search actually works.
 
-### When did I last make plans with someone?
+## Quick start
 
-**You**
+You need the .NET 10 SDK. It runs on Linux, macOS, and Windows.
 
-> When did I last talk to Sarah about dinner plans?
-
-**Claude** *(via the `search_timeline` MCP tool)*
-
-> On **14 March** you and Sarah agreed to get dinner at **Dishoom** on Friday. It came up again two
-> days later when she asked if you'd booked it. Want the surrounding messages?
-
-### Find something across every source at once
-
-**You**
-
-> I looked up a ramen place in Tokyo a while back — Telegram or a Google search, I forget. What was it?
-
-**Claude**
-
-> Found it across both: you **searched Google** for *"best ramen in shibuya"* on 10 March, and
-> mentioned it in **Telegram** the same week. Same place — Backstory linked them by topic and location.
-
-### …or just use the CLI
+Install as a global tool (once the first release is published):
 
 ```bash
+dotnet tool install -g Backstory --prerelease
+```
+
+Or build from source today:
+
+```bash
+git clone https://github.com/magna-nz/backstory && cd backstory
+dotnet build Backstory.slnx -c Release
+```
+
+Get your data in. Backstory shows you how to export it, then imports it for you when it lands in your Downloads folder:
+
+```bash
+backstory fetch google      # or: telegram
+backstory watch
+```
+
+You can also point it at a file or zip yourself. Takeout zips are unpacked for you, including the multi-part ones:
+
+```bash
+backstory import ~/Downloads/takeout-20240101.zip
+backstory import ~/Downloads/telegram-export/result.json
+```
+
+Then search:
+
+```bash
+backstory search "dinner plans with sarah"
 backstory search "trip to japan" --from 2023-01-01
-# 2023-04-02  [telegram/telegram_message]  (semantic)  booked the flight to Tokyo for may
 ```
 
-## How it works
+## Use it from an AI agent
 
-The mess of each export format is quarantined inside a per-source **adapter**; everything downstream
-works on one normalized `Event` / `Entity` model. Storage is SQLite (timeline + FTS5 keyword search)
-plus a brute-force cosine vector index. Search fuses semantic and keyword hits via Reciprocal Rank
-Fusion. Full design in [SPEC.md](SPEC.md); browsable docs at
-[magna-nz.github.io/backstory](https://magna-nz.github.io/backstory/).
+Backstory speaks MCP, so any MCP client (Claude and others) can query your timeline. Start the server:
 
-```mermaid
-flowchart TD
-    TG["Telegram<br/>result.json"]:::src
-    GT["Google Takeout<br/>JSON / CSV"]:::src
-
-    TG --> AD
-    GT --> AD
-
-    AD["Source adapters<br/><i>detect · parse · normalize</i>"]:::ingest
-    NR["Normalizer<br/><i>Event + Entity schema</i>"]:::ingest
-    ER["Entity resolution<br/><i>link people &amp; places</i>"]:::ingest
-    AD --> NR --> ER
-
-    ER --> FTS[("SQLite + FTS5<br/>timeline · keyword")]:::store
-    ER --> VEC[("Vector index<br/>cosine")]:::store
-    ER --> RAW[("Raw blobs<br/>verbatim")]:::store
-
-    FTS --> HQ
-    VEC --> HQ
-    HQ["Hybrid query<br/><i>semantic + keyword + filters</i>"]:::query
-
-    HQ --> CLI["CLI"]:::iface
-    HQ --> MCP["MCP server → your agent"]:::iface
-
-    classDef src fill:#FAECE7,stroke:#993C1D,color:#4A1B0C;
-    classDef ingest fill:#EEEDFE,stroke:#534AB7,color:#26215C;
-    classDef store fill:#E1F5EE,stroke:#0F6E56,color:#04342C;
-    classDef query fill:#E1F5EE,stroke:#0F6E56,color:#04342C;
-    classDef iface fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A;
+```bash
+backstory serve
 ```
 
-## Use it in 3 steps
-
-Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Runs on **Linux**, **macOS**, and
-**Windows** — it's pure .NET.
-
-1. **Install it** as a .NET global tool:
-   ```bash
-   dotnet tool install -g Backstory --prerelease
-   ```
-   …or build from source:
-   ```bash
-   git clone https://github.com/magna-nz/backstory && cd backstory
-   dotnet build Backstory.slnx -c Release
-   ```
-2. **Get your data in.** Backstory shows you how to export, then auto-imports it for you:
-   ```bash
-   backstory fetch google      # (or: telegram) — shows the exact steps, opens the page
-   backstory watch             # auto-imports the export the moment it lands in ~/Downloads
-   ```
-   …or point it at a file/zip directly:
-   ```bash
-   backstory import ~/Downloads/takeout-20240101.zip          # zips are unpacked automatically
-   backstory import ~/Downloads/telegram-export/result.json
-   ```
-3. **Search it, or wire it into an agent.**
-   ```bash
-   backstory search "dinner plans with sarah"
-   backstory serve        # MCP server over stdio
-   ```
-
-The vault lives at `$BACKSTORY_DB` or `~/.backstory/backstory.db`.
-
-### Register the MCP server
+Register it with one command:
 
 ```bash
 claude mcp add backstory -- backstory serve
 ```
 
-…or edit your MCP client config directly:
+Or add it to your MCP config directly:
 
 ```json
 {
@@ -144,77 +84,93 @@ claude mcp add backstory -- backstory serve
 }
 ```
 
-## CLI
+Now you can ask the agent things like "what was that ramen place I looked up in Tokyo?" and it searches across both your Google and Telegram data to answer.
 
-| Command | Does |
+## How it works
+
+Every export format is messy in its own way, so a small adapter handles each one and converts it into the same shape: events on a timeline, plus the people and places they mention. From there everything works the same. Storage is SQLite with a full-text index for keywords and a vector index for meaning. A search runs both and combines the results.
+
+```mermaid
+flowchart TD
+    TG["Telegram<br/>result.json"]:::src
+    GT["Google Takeout<br/>JSON / CSV"]:::src
+
+    TG --> AD
+    GT --> AD
+
+    AD["Adapters<br/><i>parse and normalize</i>"]:::ingest
+    NR["Normalizer<br/><i>events and entities</i>"]:::ingest
+    ER["Entity resolution<br/><i>link people and places</i>"]:::ingest
+    AD --> NR --> ER
+
+    ER --> FTS[("SQLite + FTS5<br/>timeline, keyword")]:::store
+    ER --> VEC[("Vector index<br/>meaning")]:::store
+
+    FTS --> HQ
+    VEC --> HQ
+    HQ["Search<br/><i>keyword + meaning</i>"]:::query
+
+    HQ --> CLI["CLI"]:::iface
+    HQ --> MCP["MCP server"]:::iface
+
+    classDef src fill:#FAECE7,stroke:#993C1D,color:#4A1B0C;
+    classDef ingest fill:#EEEDFE,stroke:#534AB7,color:#26215C;
+    classDef store fill:#E1F5EE,stroke:#0F6E56,color:#04342C;
+    classDef query fill:#E1F5EE,stroke:#0F6E56,color:#04342C;
+    classDef iface fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A;
+```
+
+There is a full technical writeup at [magna-nz.github.io/backstory](https://magna-nz.github.io/backstory/) and in [SPEC.md](SPEC.md).
+
+## Commands
+
+| Command | What it does |
 |---|---|
 | `fetch google\|telegram` | Show how to export your data, and open the page |
-| `watch [--dir <path>]` | Auto-import exports as they land in `~/Downloads` |
-| `import <path>` | Ingest an export (file, folder, or Takeout `.zip`) |
-| `search "<query>"` | Hybrid search; `--from --to --source --limit` |
-| `timeline` | Chronological events with filters |
+| `watch [--dir <path>]` | Import exports automatically as they download to `~/Downloads` |
+| `import <path>` | Import an export (file, folder, or Takeout zip) |
+| `search "<query>"` | Search the timeline. Filters: `--from --to --source --limit` |
+| `timeline` | List events in time order, with the same filters |
 | `entity "<name>"` | Look up a person or place |
-| `stats` | Counts by source/type, active embedder |
-| `serve` | Run the MCP server (stdio) |
-| `model fetch` | Download the semantic model (one-time, opt-in) |
+| `stats` | Counts by source and type, and the embedder in use |
+| `serve` | Run the MCP server |
+| `model fetch` | Download the semantic search model (optional, one time) |
 | `eval` | Run the benchmark |
+
+The database lives at `$BACKSTORY_DB`, or `~/.backstory/backstory.db` by default.
+
+## Search quality
+
+There are two ways to turn text into vectors, and you can switch between them:
+
+- Hashing (default). No setup, fully offline, matches on the words that appear. Good enough to get started.
+- ONNX MiniLM. Real semantic search that matches on meaning. Run `backstory model fetch` once (about 90 MB) and Backstory uses it automatically. This is what lets a search for "japan vacation" find a message about a "flight to Tokyo".
+
+You can measure the difference yourself with `backstory eval`. It loads sample data and reports two numbers: how much of the data was parsed, and how often the right event shows up in the top five search results.
+
+| Embedder | Data parsed | Right answer in top 5 |
+|---|---|---|
+| Hashing (default) | 100% | 87.5% |
+| ONNX MiniLM | 100% | 100% |
+
+## Sources
+
+Today: Google Takeout (search history, YouTube history, saved places, location history) and Telegram (messages and contacts). Adding a source means writing one adapter. Nothing else changes.
 
 ## MCP tools
 
-| Tool | Purpose |
+| Tool | What it returns |
 |---|---|
-| `search_timeline` | Natural-language search over your timeline |
-| `get_events` | Full event records by id (incl. source pointer) |
-| `lookup_entity` | Resolve a person/place by name |
-| `summarize_period` | All events in a range for the agent to summarize |
-| `list_sources` | Sources ingested and their event counts |
-
-## Embeddings
-
-Two embedders behind one `IEmbeddingService` (both 384-dim, interchangeable):
-
-- **Hashing** (default) — dependency-free, fully offline, deterministic, zero model assets. Lexical.
-  Everything works out of the box with this.
-- **ONNX MiniLM** (`all-MiniLM-L6-v2`) — true semantic embeddings run locally via ONNX Runtime. Run
-  `backstory model fetch` once (~90&nbsp;MB) and it's selected automatically. It's the difference
-  between *"japan vacation"* finding nothing and finding *"flight to Tokyo"*.
-
-## Benchmark
-
-Reproducible with `backstory eval` — ingests bundled fixtures and measures coverage (emitted vs.
-present, surfacing silent loss) and Recall@5 over a hand-built question→gold set.
-
-| Embedder | Ingestion coverage | Recall@5 |
-|---|---|---|
-| Hashing (default, offline, zero setup) | **100%** | **87.5%** |
-| ONNX MiniLM (after `backstory model fetch`) | **100%** | **100%** |
-
-## How this compares
-
-| Project | Local-first | Cross-source | Semantic search | Agent (MCP) | Benchmark |
-|---|---|---|---|---|---|
-| **Backstory** *(this)* | ✅ | ✅ unified timeline | ✅ | ✅ | ✅ coverage + R@5 |
-| [Dogsheep](https://dogsheep.github.io/) | ✅ | ❌ per-service silos | ❌ | ❌ | ❌ |
-| Single-service export viewers | ✅ | ❌ | usually ❌ | ❌ | ❌ |
-
-Backstory's edge is the **unified cross-source timeline + semantic search + MCP** — the thing Dogsheep
-can't do, and the thing an agent can't do ad-hoc against raw export files.
-
-## Docs
-
-- **[Technical docs site](https://magna-nz.github.io/backstory/)** — architecture, internals, every component
-- **[SPEC.md](SPEC.md)** — full design, scope, and decisions
-- **[STATUS.md](STATUS.md)** — current state and what's next
+| `search_timeline` | Ranked events for a natural-language query |
+| `get_events` | Full event records by id, including a pointer to the source |
+| `lookup_entity` | A person or place by name |
+| `summarize_period` | Every event in a date range, for the agent to summarize |
+| `list_sources` | The sources imported and how many events each has |
 
 ## Privacy
 
-100% local, no telemetry. The only network access in the entire project is the opt-in, one-time
-embedding-model download via `model fetch` — never your data. `.gitignore` keeps vault databases,
-models, and exports out of source control.
+Everything runs locally and there is no telemetry. The only time Backstory touches the network is when you run `backstory model fetch` to download the search model, and that step is optional. Your data never leaves your machine. The `.gitignore` is set up so a database or an export can't be committed by accident.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Built on the
-[ModelContextProtocol SDK](https://github.com/modelcontextprotocol/csharp-sdk) (MIT),
-[ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT), and
-[all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) (Apache-2.0).
+MIT. See [LICENSE](LICENSE). Built on the [ModelContextProtocol SDK](https://github.com/modelcontextprotocol/csharp-sdk), [ONNX Runtime](https://github.com/microsoft/onnxruntime), and [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
