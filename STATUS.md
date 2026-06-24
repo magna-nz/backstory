@@ -5,7 +5,7 @@ _Last updated: 2026-06-23_
 ## What was built
 
 Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**. Complete, building,
-**19 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
+**22 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
 
 - **Solution** (`Backstory.slnx`): Core, Adapters, Storage, Embeddings, Query, Mcp, Cli + Eval + Tests.
 - **Adapters**: `TelegramAdapter` (full + single-chat JSON), `GoogleTakeoutAdapter` (Search, YouTube,
@@ -17,7 +17,10 @@ Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**
     selected automatically by `EmbeddingFactory` when the model is present.
   - `ModelDownloader` + `backstory model fetch` (opt-in ~90 MB download — the only network access).
 - **Pipeline + query**: `IngestionPipeline` (idempotent), `HybridSearch` (semantic + keyword via RRF).
-- **CLI**: import / search / timeline / entity / stats / serve / eval / model fetch.
+- **CLI**: import / search / timeline / entity / stats / serve / eval / model fetch / fetch / watch.
+- **Onboarding**: `fetch google|telegram` (guided export instructions + opens the page) and `watch`
+  (FileSystemWatcher auto-imports a `result.json` or Takeout `.zip` as it lands in ~/Downloads;
+  zips are auto-extracted). `import` now also accepts a `.zip`. Verified live end-to-end.
 - **MCP server**: `ModelContextProtocol` 1.4.0 over stdio, 5 tools.
 - **Benchmark** (`backstory eval`):
   - Hashing: **100% coverage, 87.5% Recall@5**

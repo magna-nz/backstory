@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Threading.Channels;
 using Backstory.Adapters;
 using Backstory.Core;
 using Backstory.Embeddings;
@@ -46,6 +48,10 @@ switch (command)
         return await RunEval();
     case "model":
         return await Model();
+    case "fetch":
+        return Fetch();
+    case "watch":
+        return await Watch();
     default:
         Console.Error.WriteLine($"Unknown command '{command}'.");
         PrintUsage();
@@ -60,28 +66,184 @@ async Task<int> Import()
         return 1;
     }
 
-    var path = positional[0];
-    ISourceAdapter[] adapters = [new GoogleTakeoutAdapter(), new TelegramAdapter()];
-    var requested = options.GetValueOrDefault("source", "auto");
+    var stats = await ImportPath(positional[0], options.GetValueOrDefault("source", "auto"));
+    return stats is null ? 1 : 0;
+}
 
+// Shared by `import` and `watch`. Unzips a Takeout zip, picks an adapter, and ingests.
+async Task<ImportStats?> ImportPath(string path, string requested)
+{
+    var importPath = path;
+    if (File.Exists(path) && path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine($"Extracting {Path.GetFileName(path)}…");
+        importPath = ExportFiles.ExtractZip(path, Path.Combine(Path.GetDirectoryName(dbPath)!, "imports"));
+    }
+
+    ISourceAdapter[] adapters = [new GoogleTakeoutAdapter(), new TelegramAdapter()];
     var adapter = requested == "auto"
-        ? adapters.FirstOrDefault(a => a.CanHandle(path))
+        ? adapters.FirstOrDefault(a => a.CanHandle(importPath))
         : adapters.FirstOrDefault(a => a.Source == requested);
 
     if (adapter is null)
     {
         Console.Error.WriteLine($"No adapter could handle '{path}' (source={requested}).");
-        return 1;
+        return null;
     }
 
     Console.WriteLine($"Importing with '{adapter.Source}' adapter (embedder: {embedderName})…");
     var pipeline = new IngestionPipeline(events, entities, embeddings, vectors);
-    var stats = await pipeline.ImportAsync(adapter, path);
+    var stats = await pipeline.ImportAsync(adapter, importPath);
 
     Console.WriteLine($"Imported {stats.Events} events, {stats.Entities} entities.");
     foreach (var (subType, count) in stats.BySubType.OrderByDescending(kv => kv.Value))
         Console.WriteLine($"  {subType,-18} {count}");
+    return stats;
+}
+
+int Fetch()
+{
+    var src = positional.Count > 0 ? positional[0].ToLowerInvariant() : "";
+    switch (src)
+    {
+        case "google":
+            Console.WriteLine("""
+                Export your Google data via Takeout:
+
+                  1. Opening https://takeout.google.com in your browser…
+                  2. Click "Deselect all", then tick only what Backstory uses:
+                       • My Activity                 (search history)
+                       • Maps (your places)          (saved places)
+                       • Location History / Timeline (if available)
+                       • YouTube and YouTube Music   (watch history)
+                  3. Next → "Export once", file type .zip, a large size (e.g. 50 GB).
+                  4. Google emails a link when it's ready (minutes to hours).
+                  5. Download the .zip, then:  backstory watch   (auto-imports it)
+                       or:  backstory import ~/Downloads/takeout-*.zip
+                """);
+            TryOpenUrl("https://takeout.google.com");
+            return 0;
+
+        case "telegram":
+            Console.WriteLine("""
+                Export your Telegram data (Telegram Desktop — not the phone app):
+
+                  1. Settings → Advanced → Export Telegram data
+                  2. Set the format to "Machine-readable JSON"
+                  3. Tick what you want (Personal chats, etc.); set a date range if you like
+                  4. Export — it writes a folder containing result.json
+                  5. Then:  backstory watch   (auto-imports it)
+                       or:  backstory import <export-folder>/result.json
+                """);
+            return 0;
+
+        default:
+            Console.Error.WriteLine("usage: backstory fetch google|telegram");
+            return 1;
+    }
+}
+
+async Task<int> Watch()
+{
+    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    var dir = options.GetValueOrDefault("dir") ?? Path.Combine(home, "Downloads");
+    if (!Directory.Exists(dir))
+    {
+        Console.Error.WriteLine($"No such directory: {dir}");
+        return 1;
+    }
+
+    Console.WriteLine($"Watching {dir} for Google Takeout / Telegram exports… (Ctrl+C to stop)");
+
+    var channel = Channel.CreateUnbounded<string>();
+    void Enqueue(string p)
+    {
+        if (ExportFiles.Detect(p) is not null) channel.Writer.TryWrite(p);
+    }
+
+    using var watcher = new FileSystemWatcher(dir)
+    {
+        IncludeSubdirectories = true,
+        NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.LastWrite,
+        EnableRaisingEvents = true
+    };
+    watcher.Created += (_, e) => Enqueue(e.FullPath);
+    watcher.Renamed += (_, e) => Enqueue(e.FullPath);
+    watcher.Changed += (_, e) => Enqueue(e.FullPath);
+
+    using var cts = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); channel.Writer.TryComplete(); };
+
+    var processed = new HashSet<string>();
+    try
+    {
+        await foreach (var path in channel.Reader.ReadAllAsync(cts.Token))
+        {
+            if (!processed.Add(path)) continue;
+            if (!await WaitUntilStable(path, cts.Token)) { processed.Remove(path); continue; }
+
+            Console.WriteLine($"\nDetected export: {Path.GetFileName(path)}");
+            try { await ImportPath(path, "auto"); }
+            catch (Exception ex) { Console.Error.WriteLine($"  import failed: {ex.Message}"); }
+        }
+    }
+    catch (OperationCanceledException) { /* Ctrl+C */ }
+
+    Console.WriteLine("\nStopped watching.");
     return 0;
+}
+
+// Wait for a download to finish: size stable across two polls and the file is openable.
+static async Task<bool> WaitUntilStable(string path, CancellationToken ct)
+{
+    if (ExportFiles.IsPartialDownload(path)) return false;
+    long last = -1;
+    var stableCount = 0;
+    for (var i = 0; i < 240 && !ct.IsCancellationRequested; i++)
+    {
+        long length;
+        try
+        {
+            if (Directory.Exists(path)) return true;
+            var info = new FileInfo(path);
+            if (!info.Exists) return false;
+            length = info.Length;
+        }
+        catch { await Task.Delay(500, ct); continue; }
+
+        if (length == last)
+        {
+            if (++stableCount >= 2) return CanOpen(path);
+        }
+        else { stableCount = 0; last = length; }
+
+        await Task.Delay(500, ct);
+    }
+    return false;
+}
+
+static bool CanOpen(string path)
+{
+    try
+    {
+        using var _ = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return true;
+    }
+    catch { return false; }
+}
+
+static void TryOpenUrl(string url)
+{
+    try
+    {
+        if (OperatingSystem.IsWindows())
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        else if (OperatingSystem.IsMacOS())
+            Process.Start("open", url);
+        else
+            Process.Start("xdg-open", url);
+    }
+    catch { /* best effort — the URL is printed above */ }
 }
 
 async Task<int> Search()
@@ -248,6 +410,8 @@ static void PrintUsage()
         backstory — your data exports, searchable and local.
 
         Usage:
+          backstory fetch google|telegram      # how to export your data (opens the page)
+          backstory watch [--dir <path>]       # auto-import exports as they land in ~/Downloads
           backstory import <path> [--source auto|telegram|google_takeout]
           backstory search "<query>" [--limit N] [--from ISO] [--to ISO] [--source S]
           backstory timeline [--from ISO] [--to ISO] [--source S] [--limit N]

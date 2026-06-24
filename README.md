@@ -110,10 +110,15 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download). Runs on **Lin
    git clone https://github.com/magna-nz/backstory && cd backstory
    dotnet build Backstory.slnx -c Release
    ```
-2. **Import an export** (adapter auto-detected).
+2. **Get your data in.** Backstory shows you how to export, then auto-imports it for you:
    ```bash
+   backstory fetch google      # (or: telegram) — shows the exact steps, opens the page
+   backstory watch             # auto-imports the export the moment it lands in ~/Downloads
+   ```
+   …or point it at a file/zip directly:
+   ```bash
+   backstory import ~/Downloads/takeout-20240101.zip          # zips are unpacked automatically
    backstory import ~/Downloads/telegram-export/result.json
-   backstory import ~/Downloads/Takeout
    ```
 3. **Search it, or wire it into an agent.**
    ```bash
@@ -143,7 +148,9 @@ claude mcp add backstory -- backstory serve
 
 | Command | Does |
 |---|---|
-| `import <path>` | Auto-detect adapter and ingest an export |
+| `fetch google\|telegram` | Show how to export your data, and open the page |
+| `watch [--dir <path>]` | Auto-import exports as they land in `~/Downloads` |
+| `import <path>` | Ingest an export (file, folder, or Takeout `.zip`) |
 | `search "<query>"` | Hybrid search; `--from --to --source --limit` |
 | `timeline` | Chronological events with filters |
 | `entity "<name>"` | Look up a person or place |
