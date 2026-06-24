@@ -13,6 +13,19 @@ You can download your data from Google, Telegram, and most other services. The p
 
 Nothing is sent to the cloud. Your data stays in a SQLite file on your machine. That is the main reason this tool exists, since this is the most personal data you have.
 
+## Contents
+
+- [What it can do](#what-it-can-do)
+- [Sources](#sources)
+- [Quick start](#quick-start)
+- [Use it from an AI agent](#use-it-from-an-ai-agent)
+- [How it works](#how-it-works)
+- [Commands](#commands)
+- [Search quality](#search-quality)
+- [MCP tools](#mcp-tools)
+- [Privacy](#privacy)
+- [License](#license)
+
 ## What it can do
 
 - Import exports from Google, Telegram, Spotify, and Instagram.
@@ -21,6 +34,19 @@ Nothing is sent to the cloud. Your data stays in a SQLite file on your machine. 
 - Answer questions from an AI agent, like "when did I last message Sarah about dinner?".
 - Show you how to export your data, then import it automatically when it finishes downloading.
 - Report a benchmark so you can see how well the search actually works.
+
+## Sources
+
+Each source is a small adapter that turns an export into events. Here is what works today and what each one pulls in.
+
+| Source | What it imports | How to export it |
+|---|---|---|
+| Google Takeout | Search history, YouTube history, saved places, location history | `backstory fetch google` |
+| Telegram | Messages, contacts | `backstory fetch telegram` |
+| Spotify | Listening history, podcasts, searches | `backstory fetch spotify` |
+| Instagram | Direct messages, posts, comments, searches | `backstory fetch instagram` |
+
+Adding a new source means writing one adapter. Nothing else changes.
 
 ## Quick start
 
@@ -152,19 +178,6 @@ You can measure the difference yourself with `backstory eval`. It loads sample d
 |---|---|---|
 | Hashing (default) | 100% | 87.5% |
 | ONNX MiniLM | 100% | 100% |
-
-## Sources
-
-Each source is a small adapter that turns an export into events. Here is what works today and what each one pulls in.
-
-| Source | What it imports | How to export it |
-|---|---|---|
-| Google Takeout | Search history, YouTube history, saved places, location history | `backstory fetch google` |
-| Telegram | Messages, contacts | `backstory fetch telegram` |
-| Spotify | Listening history, podcasts, searches | `backstory fetch spotify` |
-| Instagram | Direct messages, posts, comments, searches | `backstory fetch instagram` |
-
-Adding a new source means writing one adapter. Nothing else changes.
 
 ## MCP tools
 
