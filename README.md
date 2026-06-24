@@ -1,6 +1,6 @@
 # Backstory
 
-Search your own data exports from one place, on your own machine.
+Search all your data exports in one place. It runs entirely on your own computer, and nothing ever leaves your PC.
 
 [![CI](https://github.com/magna-nz/backstory/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/magna-nz/backstory/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
