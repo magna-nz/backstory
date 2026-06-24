@@ -2,6 +2,8 @@
 
 Search all your data exports in one place. It runs entirely on your own computer, and nothing ever leaves your PC.
 
+<!-- mcp-name: io.github.magna-nz/backstory -->
+
 [![CI](https://github.com/magna-nz/backstory/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/magna-nz/backstory/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-005FBA)](https://modelcontextprotocol.io/)

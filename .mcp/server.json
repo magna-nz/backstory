@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.magna-nz/backstory",
+  "version": "0.1.0",
+  "title": "Backstory: search your data exports locally",
+  "description": "Local-first MCP server and CLI that imports your Google, Telegram, Spotify, and Instagram exports into one searchable timeline. Hybrid semantic and keyword search. Nothing leaves your machine.",
+  "websiteUrl": "https://github.com/magna-nz/backstory",
+  "repository": {
+    "url": "https://github.com/magna-nz/backstory",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "nuget",
+      "registryBaseUrl": "https://api.nuget.org/v3/index.json",
+      "identifier": "Backstory",
+      "version": "0.1.0",
+      "runtimeHint": "dnx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "serve",
+          "valueHint": "serve"
+        }
+      ]
+    }
+  ]
+}
