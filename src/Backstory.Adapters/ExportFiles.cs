@@ -20,7 +20,9 @@ public static class ExportFiles
     {
         var name = Path.GetFileName(path).ToLowerInvariant();
         if (name == "result.json") return "telegram";
-        if (name.StartsWith("takeout") && name.EndsWith(".zip")) return "google_zip";
+        if (!name.EndsWith(".zip")) return null;
+        if (name.StartsWith("takeout")) return "google_zip";
+        if (name.StartsWith("instagram") || name.Contains("spotify")) return "zip";
         return null;
     }
 

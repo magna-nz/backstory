@@ -15,7 +15,7 @@ Nothing is sent to the cloud. Your data stays in a SQLite file on your machine. 
 
 ## What it can do
 
-- Import Google Takeout and Telegram exports (more sources later).
+- Import exports from Google, Telegram, Spotify, and Instagram.
 - Search everything as one timeline, by meaning or by keyword.
 - Match the same person or place across different sources.
 - Answer questions from an AI agent, like "when did I last message Sarah about dinner?".
@@ -126,7 +126,7 @@ There is a full technical writeup at [magna-nz.github.io/backstory](https://magn
 
 | Command | What it does |
 |---|---|
-| `fetch google\|telegram` | Show how to export your data, and open the page |
+| `fetch google\|telegram\|spotify\|instagram` | Show how to export your data, and open the page |
 | `watch [--dir <path>]` | Import exports automatically as they download to `~/Downloads` |
 | `import <path>` | Import an export (file, folder, or Takeout zip) |
 | `search "<query>"` | Search the timeline. Filters: `--from --to --source --limit` |
@@ -155,7 +155,16 @@ You can measure the difference yourself with `backstory eval`. It loads sample d
 
 ## Sources
 
-Today: Google Takeout (search history, YouTube history, saved places, location history) and Telegram (messages and contacts). Adding a source means writing one adapter. Nothing else changes.
+Each source is a small adapter that turns an export into events. Here is what works today and what each one pulls in.
+
+| Source | What it imports | How to export it |
+|---|---|---|
+| Google Takeout | Search history, YouTube history, saved places, location history | `backstory fetch google` |
+| Telegram | Messages, contacts | `backstory fetch telegram` |
+| Spotify | Listening history, podcasts, searches | `backstory fetch spotify` |
+| Instagram | Direct messages | `backstory fetch instagram` |
+
+Adding a new source means writing one adapter. Nothing else changes.
 
 ## MCP tools
 

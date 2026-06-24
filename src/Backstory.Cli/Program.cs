@@ -83,7 +83,8 @@ async Task<ImportStats?> ImportPath(string path, string requested)
         importPath = ExportFiles.ExtractZips(parts, Path.Combine(Path.GetDirectoryName(dbPath)!, "imports"));
     }
 
-    ISourceAdapter[] adapters = [new GoogleTakeoutAdapter(), new TelegramAdapter()];
+    ISourceAdapter[] adapters =
+        [new GoogleTakeoutAdapter(), new TelegramAdapter(), new SpotifyAdapter(), new InstagramAdapter()];
     var adapter = requested == "auto"
         ? adapters.FirstOrDefault(a => a.CanHandle(importPath))
         : adapters.FirstOrDefault(a => a.Source == requested);
@@ -140,8 +141,38 @@ int Fetch()
                 """);
             return 0;
 
+        case "spotify":
+            Console.WriteLine("""
+                Export your Spotify data:
+
+                  1. Opening https://www.spotify.com/account/privacy/ …
+                  2. Scroll to "Download your data".
+                  3. Tick "Extended streaming history" for everything you've played
+                     (or "Account data" for the last year plus playlists and searches).
+                  4. Confirm using the email Spotify sends you.
+                  5. It can take up to 30 days. When the zip arrives:  backstory watch
+                       or:  backstory import ~/Downloads/my_spotify_data.zip
+                """);
+            TryOpenUrl("https://www.spotify.com/account/privacy/");
+            return 0;
+
+        case "instagram":
+            Console.WriteLine("""
+                Export your Instagram data:
+
+                  1. Opening https://accountscenter.instagram.com/info_and_permissions/ …
+                     (in the app: Accounts Center → Your information and permissions → Download your information)
+                  2. Choose "Some of your information" and pick Messages (and anything else you want).
+                  3. Set the format to JSON.
+                  4. Request it. Instagram emails a link, which can take a few hours, sometimes up to 30 days.
+                  5. When the zip arrives:  backstory watch
+                       or:  backstory import ~/Downloads/instagram-export.zip
+                """);
+            TryOpenUrl("https://accountscenter.instagram.com/info_and_permissions/");
+            return 0;
+
         default:
-            Console.Error.WriteLine("usage: backstory fetch google|telegram");
+            Console.Error.WriteLine("usage: backstory fetch google|telegram|spotify|instagram");
             return 1;
     }
 }
@@ -413,7 +444,7 @@ static void PrintUsage()
         backstory — your data exports, searchable and local.
 
         Usage:
-          backstory fetch google|telegram      # how to export your data (opens the page)
+          backstory fetch google|telegram|spotify|instagram   # how to export your data (opens the page)
           backstory watch [--dir <path>]       # auto-import exports as they land in ~/Downloads
           backstory import <path> [--source auto|telegram|google_takeout]
           backstory search "<query>" [--limit N] [--from ISO] [--to ISO] [--source S]
