@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       push_to_nuget:
-        description: 'Also push to NuGet.org? (release events always push if the secret is set)'
+        description: 'Also push to NuGet.org? (release events always push via trusted publishing)'
         required: false
         default: false
         type: boolean
@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write   # required to upload the .nupkg as a release asset
+      id-token: write   # required for NuGet trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -73,19 +74,24 @@ jobs:
         with:
           files: nupkg/*.nupkg
 
+      # Trusted publishing: exchange the GitHub OIDC token for a short-lived NuGet API key.
+      # No stored API key. Requires a trusted publishing policy on nuget.org for this repo
+      # and workflow file, plus the NUGET_USER secret set to your nuget.org username.
+      - name: NuGet login (OIDC to temporary API key)
+        if: |
+          github.event_name == 'release' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_nuget == 'true')
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Push to NuGet.org
         if: |
           github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_nuget == 'true')
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          if [ -z "${NUGET_API_KEY:-}" ]; then
-            echo "::warning::NUGET_API_KEY secret is not set — skipping NuGet.org push."
-            echo "Add it at https://github.com/${{ github.repository }}/settings/secrets/actions"
-            exit 0
-          fi
           dotnet nuget push nupkg/*.nupkg \
-            --api-key "$NUGET_API_KEY" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
