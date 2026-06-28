@@ -5,6 +5,8 @@ Search all your data exports in one place. It runs entirely on your own computer
 <!-- mcp-name: io.github.magna-nz/backstory -->
 
 [![CI](https://github.com/magna-nz/backstory/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/magna-nz/backstory/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Backstory.svg?label=NuGet)](https://www.nuget.org/packages/Backstory)
+[![Downloads](https://img.shields.io/nuget/dt/Backstory.svg?label=downloads)](https://www.nuget.org/packages/Backstory)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-005FBA)](https://modelcontextprotocol.io/)
 [![Platforms](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-success)](#quick-start)
