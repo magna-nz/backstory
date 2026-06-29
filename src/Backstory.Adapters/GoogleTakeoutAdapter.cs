@@ -23,10 +23,10 @@ public sealed class GoogleTakeoutAdapter : ISourceAdapter
 
     public async IAsyncEnumerable<ImportItem> ParseAsync(string path, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        foreach (var item in ParseActivity(path, Path.Combine("Search", "MyActivity.json"), "Search", "search_query"))
+        await foreach (var item in ParseActivityAsync(path, Path.Combine("Search", "MyActivity.json"), "Search", "search_query", ct))
             yield return item;
 
-        foreach (var item in ParseActivity(path, "watch-history.json", "YouTube", "youtube_watch"))
+        await foreach (var item in ParseActivityAsync(path, "watch-history.json", "YouTube", "youtube_watch", ct))
             yield return item;
 
         foreach (var item in ParseMapsSaved(path))
@@ -34,48 +34,39 @@ public sealed class GoogleTakeoutAdapter : ISourceAdapter
 
         foreach (var item in ParseSemanticLocation(path, ct))
             yield return item;
-
-        await Task.CompletedTask;
     }
 
-    // ---- Search & YouTube share the "My Activity" record shape. ----
-    private List<ImportItem> ParseActivity(string root, string fileSuffix, string header, string subType)
+    // ---- Search & YouTube share the "My Activity" record shape. These files can be very large
+    // (a long search/watch history), so they are streamed element by element. ----
+    private async IAsyncEnumerable<ImportItem> ParseActivityAsync(
+        string root, string fileSuffix, string header, string subType,
+        [EnumeratorCancellation] CancellationToken ct)
     {
-        var items = new List<ImportItem>();
         var file = FindFile(root, Path.GetFileName(fileSuffix), fileSuffix);
-        if (file is null) return items;
+        if (file is null) yield break;
 
-        try
+        var index = 0;
+        await foreach (var record in JsonStream.ArrayAsync(file, ct))
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(file));
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return items;
+            index++;
+            if (record.Str("header") != header) continue;
+            var title = record.Str("title");
+            if (string.IsNullOrWhiteSpace(title)) continue;
+            if (ParseTime(record.Str("time")) is not { } ts) continue;
 
-            var index = 0;
-            foreach (var record in doc.RootElement.EnumerateArray())
+            var channel = record.Arr("subtitles").FirstOrDefault().Str("name");
+            var text = channel is null ? title : $"{title} ({channel})";
+
+            yield return new EventItem(new Event
             {
-                index++;
-                if (record.Str("header") != header) continue;
-                var title = record.Str("title");
-                if (string.IsNullOrWhiteSpace(title)) continue;
-                if (ParseTime(record.Str("time")) is not { } ts) continue;
-
-                var channel = record.Arr("subtitles").FirstOrDefault().Str("name");
-                var text = channel is null ? title : $"{title} ({channel})";
-
-                items.Add(new EventItem(new Event
-                {
-                    Id = Ids.ContentHash(subType, title, ts.ToString("O")),
-                    Timestamp = ts,
-                    Source = Source,
-                    SubType = subType,
-                    Text = text,
-                    Raw = new RawRef(file, $"index={index}")
-                }));
-            }
+                Id = Ids.ContentHash(subType, title, ts.ToString("O")),
+                Timestamp = ts,
+                Source = Source,
+                SubType = subType,
+                Text = text,
+                Raw = new RawRef(file, $"index={index}")
+            });
         }
-        catch (JsonException) { /* skip unparseable file */ }
-
-        return items;
     }
 
     // ---- Maps saved places: GeoJSON (Saved.json) and/or CSV lists. ----

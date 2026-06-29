@@ -5,7 +5,7 @@ _Last updated: 2026-06-23_
 ## What was built
 
 Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**. Complete, building,
-**27 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
+**30 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
 
 - **Solution** (`Backstory.slnx`): Core, Adapters, Storage, Embeddings, Query, Mcp, Cli + Eval + Tests.
 - **Adapters**: `TelegramAdapter` (messages, contacts), `GoogleTakeoutAdapter` (Search, YouTube,
@@ -13,6 +13,12 @@ Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**
   history, podcasts, searches), `InstagramAdapter` (direct messages, posts, comments, searches;
   Latin-1/UTF-8 mojibake repair; handles Meta's string_map_data shape generically). Defensive
   parsing. Auto-detected on import; `fetch` covers all four.
+- **Streaming parse for large exports**: the big files no longer load into memory. Telegram
+  `result.json` (a deeply nested, potentially multi-GB file) streams via `PipeReader` +
+  `Utf8JsonReader`, materialising one message at a time; Google `MyActivity.json` /
+  `watch-history.json` and Spotify history (top-level arrays) stream via
+  `DeserializeAsyncEnumerable`. Telegram `CanHandle` now sniffs only a prefix. Verified by tests
+  that parse 100k-record fixtures (10 MB+) with peak live heap held under a quarter of the file size.
 - **Storage**: SQLite — events + FTS5 keyword index, entities + aliases, `BruteForceVectorStore`.
 - **Embeddings**: two services behind `IEmbeddingService` (both 384-dim) —
   - `HashingEmbeddingService` (default, offline, deterministic, zero assets)

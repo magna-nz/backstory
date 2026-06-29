@@ -26,105 +26,83 @@ public sealed class SpotifyAdapter : ISourceAdapter
     public async IAsyncEnumerable<ImportItem> ParseAsync(string path, [EnumeratorCancellation] CancellationToken ct = default)
     {
         foreach (var file in Files(path, "Streaming_History_Audio_*.json").Concat(Files(path, "endsong_*.json")))
-            foreach (var item in ParseExtended(file)) yield return item;
+            await foreach (var item in ParseExtended(file, ct)) yield return item;
 
         foreach (var file in Files(path, "StreamingHistory*.json"))
-            foreach (var item in ParseAccountHistory(file)) yield return item;
+            await foreach (var item in ParseAccountHistory(file, ct)) yield return item;
 
         foreach (var file in Files(path, "SearchQueries.json"))
-            foreach (var item in ParseSearches(file)) yield return item;
-
-        await Task.CompletedTask;
+            await foreach (var item in ParseSearches(file, ct)) yield return item;
     }
 
     // Extended history: { ts, ms_played, master_metadata_track_name, master_metadata_album_artist_name, episode_name, ... }
-    private List<ImportItem> ParseExtended(string file)
+    // The extended history can cover years of plays, so it is streamed.
+    private async IAsyncEnumerable<ImportItem> ParseExtended(string file, [EnumeratorCancellation] CancellationToken ct)
     {
-        var items = new List<ImportItem>();
-        if (Load(file) is not { } doc) return items;
-        using (doc)
+        var index = 0;
+        await foreach (var record in JsonStream.ArrayAsync(file, ct))
         {
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return items;
-            var index = 0;
-            foreach (var record in doc.RootElement.EnumerateArray())
+            index++;
+            if (ParseTime(record.Str("ts")) is not { } ts) continue;
+
+            var track = record.Str("master_metadata_track_name");
+            var artist = record.Str("master_metadata_album_artist_name");
+            if (!string.IsNullOrWhiteSpace(track))
             {
-                index++;
-                if (ParseTime(record.Str("ts")) is not { } ts) continue;
+                foreach (var item in Play(ts, track!, artist, file, index)) yield return item;
+                continue;
+            }
 
-                var track = record.Str("master_metadata_track_name");
-                var artist = record.Str("master_metadata_album_artist_name");
-                if (!string.IsNullOrWhiteSpace(track))
+            var episode = record.Str("episode_name");
+            var show = record.Str("episode_show_name");
+            if (!string.IsNullOrWhiteSpace(episode))
+            {
+                yield return new EventItem(new Event
                 {
-                    items.AddRange(Play(ts, track!, artist, file, index));
-                    continue;
-                }
-
-                var episode = record.Str("episode_name");
-                var show = record.Str("episode_show_name");
-                if (!string.IsNullOrWhiteSpace(episode))
-                {
-                    items.Add(new EventItem(new Event
-                    {
-                        Id = Ids.ContentHash("spotify_podcast", episode, ts.ToString("O")),
-                        Timestamp = ts,
-                        Source = Source,
-                        SubType = "podcast_play",
-                        Text = show is null ? $"Listened to {episode}" : $"Listened to {episode} on {show}",
-                        Raw = new RawRef(file, $"index={index}")
-                    }));
-                }
+                    Id = Ids.ContentHash("spotify_podcast", episode, ts.ToString("O")),
+                    Timestamp = ts,
+                    Source = Source,
+                    SubType = "podcast_play",
+                    Text = show is null ? $"Listened to {episode}" : $"Listened to {episode} on {show}",
+                    Raw = new RawRef(file, $"index={index}")
+                });
             }
         }
-        return items;
     }
 
     // Account-data history: { endTime: "2023-05-14 19:32", artistName, trackName, msPlayed }
-    private List<ImportItem> ParseAccountHistory(string file)
+    private async IAsyncEnumerable<ImportItem> ParseAccountHistory(string file, [EnumeratorCancellation] CancellationToken ct)
     {
-        var items = new List<ImportItem>();
-        if (Load(file) is not { } doc) return items;
-        using (doc)
+        var index = 0;
+        await foreach (var record in JsonStream.ArrayAsync(file, ct))
         {
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return items;
-            var index = 0;
-            foreach (var record in doc.RootElement.EnumerateArray())
-            {
-                index++;
-                var track = record.Str("trackName");
-                if (string.IsNullOrWhiteSpace(track)) continue;
-                if (ParseTime(record.Str("endTime")) is not { } ts) continue;
-                items.AddRange(Play(ts, track!, record.Str("artistName"), file, index));
-            }
+            index++;
+            var track = record.Str("trackName");
+            if (string.IsNullOrWhiteSpace(track)) continue;
+            if (ParseTime(record.Str("endTime")) is not { } ts) continue;
+            foreach (var item in Play(ts, track!, record.Str("artistName"), file, index)) yield return item;
         }
-        return items;
     }
 
-    private List<ImportItem> ParseSearches(string file)
+    private async IAsyncEnumerable<ImportItem> ParseSearches(string file, [EnumeratorCancellation] CancellationToken ct)
     {
-        var items = new List<ImportItem>();
-        if (Load(file) is not { } doc) return items;
-        using (doc)
+        var index = 0;
+        await foreach (var record in JsonStream.ArrayAsync(file, ct))
         {
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return items;
-            var index = 0;
-            foreach (var record in doc.RootElement.EnumerateArray())
+            index++;
+            var query = record.Str("searchQuery");
+            if (string.IsNullOrWhiteSpace(query)) continue;
+            if (ParseTime(record.Str("searchTime")) is not { } ts) continue;
+            yield return new EventItem(new Event
             {
-                index++;
-                var query = record.Str("searchQuery");
-                if (string.IsNullOrWhiteSpace(query)) continue;
-                if (ParseTime(record.Str("searchTime")) is not { } ts) continue;
-                items.Add(new EventItem(new Event
-                {
-                    Id = Ids.ContentHash("spotify_search", query, ts.ToString("O")),
-                    Timestamp = ts,
-                    Source = Source,
-                    SubType = "spotify_search",
-                    Text = $"Searched Spotify for {query}",
-                    Raw = new RawRef(file, $"index={index}")
-                }));
-            }
+                Id = Ids.ContentHash("spotify_search", query, ts.ToString("O")),
+                Timestamp = ts,
+                Source = Source,
+                SubType = "spotify_search",
+                Text = $"Searched Spotify for {query}",
+                Raw = new RawRef(file, $"index={index}")
+            });
         }
-        return items;
     }
 
     private IEnumerable<ImportItem> Play(DateTimeOffset ts, string track, string? artist, string file, int index)
@@ -146,12 +124,6 @@ public sealed class SpotifyAdapter : ISourceAdapter
             ActorIds = artistId is null ? [] : [artistId],
             Raw = new RawRef(file, $"index={index}")
         });
-    }
-
-    private static JsonDocument? Load(string file)
-    {
-        try { return JsonDocument.Parse(File.ReadAllText(file)); }
-        catch { return null; }
     }
 
     private static DateTimeOffset? ParseTime(string? time)

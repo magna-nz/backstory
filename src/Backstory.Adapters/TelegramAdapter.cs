@@ -19,9 +19,12 @@ public sealed class TelegramAdapter : ISourceAdapter
         if (file is null) return false;
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(file));
-            var root = doc.RootElement;
-            return root.Prop("chats") is not null || (root.Prop("messages") is not null && root.Str("type") is not null);
+            // Sniff only the start of the file so a multi-GB export is not read into memory here.
+            using var reader = new StreamReader(file);
+            var head = new char[256 * 1024];
+            var n = reader.Read(head, 0, head.Length);
+            var text = new string(head, 0, n);
+            return text.Contains("\"chats\"") || (text.Contains("\"messages\"") && text.Contains("\"type\""));
         }
         catch
         {
@@ -32,31 +35,19 @@ public sealed class TelegramAdapter : ISourceAdapter
     public async IAsyncEnumerable<ImportItem> ParseAsync(string path, [EnumeratorCancellation] CancellationToken ct = default)
     {
         var file = ResolveFile(path) ?? throw new FileNotFoundException("No Telegram result.json found.", path);
-        using var stream = File.OpenRead(file);
-        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        var root = doc.RootElement;
         var seenSenders = new HashSet<string>();
 
-        // Contacts → person entities.
-        if (root.Prop("contacts") is { } contacts)
+        await foreach (var (kind, chat, element) in TelegramStream.ReadAsync(file, ct))
         {
-            foreach (var contact in contacts.Arr("list"))
+            if (kind == TelegramStream.ItemKind.Contact)
             {
-                if (BuildContact(contact) is { } entity)
+                if (BuildContact(element) is { } entity)
                     yield return new EntityItem(entity);
             }
-        }
-
-        // Chats → messages.
-        var chats = root.Prop("chats")?.Arr("list") ?? (root.Prop("messages") is not null ? [root] : []);
-        foreach (var chat in chats)
-        {
-            ct.ThrowIfCancellationRequested();
-            var chatName = chat.Str("name") ?? "Saved Messages";
-            foreach (var message in chat.Arr("messages"))
+            else
             {
-                if (message.Str("type") != "message") continue;
-                foreach (var item in BuildMessage(message, chatName, file, seenSenders))
+                if (element.Str("type") != "message") continue; // skip service messages
+                foreach (var item in BuildMessage(element, chat, file, seenSenders))
                     yield return item;
             }
         }
