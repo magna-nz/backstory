@@ -9,6 +9,7 @@ Search all your data exports in one place. It runs entirely on your own computer
 [![Downloads](https://img.shields.io/nuget/dt/Backstory.svg?label=downloads)](https://www.nuget.org/packages/Backstory)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-005FBA)](https://modelcontextprotocol.io/)
+[![Glama](https://glama.ai/mcp/servers/magna-nz/backstory/badges/score.svg)](https://glama.ai/mcp/servers/magna-nz/backstory)
 [![Platforms](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-success)](#quick-start)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-magna--nz.github.io-0f6e56)](https://magna-nz.github.io/backstory/)
