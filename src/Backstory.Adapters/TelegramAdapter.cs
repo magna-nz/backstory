@@ -55,11 +55,18 @@ public sealed class TelegramAdapter : ISourceAdapter
 
     private static IEnumerable<ImportItem> BuildMessage(JsonElement message, string chatName, string file, HashSet<string> seenSenders)
     {
-        if (message.Prop("text") is not { } textValue) yield break;
-        var text = JsonX.FlattenText(textValue);
-        if (string.IsNullOrWhiteSpace(text)) yield break;
+        var text = message.Prop("text") is { } textValue ? JsonX.FlattenText(textValue) : "";
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            yield return new Notice("message without text (e.g. media or sticker)");
+            yield break;
+        }
 
-        if (ParseTimestamp(message) is not { } ts) yield break;
+        if (ParseTimestamp(message) is not { } ts)
+        {
+            yield return new Notice("record without a usable timestamp");
+            yield break;
+        }
 
         var fromId = message.Str("from_id");
         var fromName = message.Str("from");

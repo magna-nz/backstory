@@ -45,7 +45,11 @@ public sealed class InstagramAdapter : ISourceAdapter
     private static List<ImportItem> ParseThread(string file)
     {
         var items = new List<ImportItem>();
-        if (Load(file) is not { } doc) return items;
+        if (Load(file) is not { } doc)
+        {
+            items.Add(new Notice($"unreadable file: {Path.GetFileName(file)}"));
+            return items;
+        }
         using (doc)
         {
             var root = doc.RootElement;
@@ -60,8 +64,16 @@ public sealed class InstagramAdapter : ISourceAdapter
             {
                 index++;
                 var content = message.Str("content");
-                if (string.IsNullOrWhiteSpace(content)) continue;
-                if (Seconds(message.Prop("timestamp_ms")) is not { } ms) continue;
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    items.Add(new Notice("message without text (e.g. media or sticker)"));
+                    continue;
+                }
+                if (Seconds(message.Prop("timestamp_ms")) is not { } ms)
+                {
+                    items.Add(new Notice("record without a usable timestamp"));
+                    continue;
+                }
 
                 var sender = Fix(message.Str("sender_name") ?? "");
                 string? actorId = null;

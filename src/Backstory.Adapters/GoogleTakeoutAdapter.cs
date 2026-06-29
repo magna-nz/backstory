@@ -49,10 +49,14 @@ public sealed class GoogleTakeoutAdapter : ISourceAdapter
         await foreach (var record in JsonStream.ArrayAsync(file, ct))
         {
             index++;
-            if (record.Str("header") != header) continue;
+            if (record.Str("header") != header) continue; // a different activity type in the same file
             var title = record.Str("title");
             if (string.IsNullOrWhiteSpace(title)) continue;
-            if (ParseTime(record.Str("time")) is not { } ts) continue;
+            if (ParseTime(record.Str("time")) is not { } ts)
+            {
+                yield return new Notice("record without a usable timestamp");
+                continue;
+            }
 
             var channel = record.Arr("subtitles").FirstOrDefault().Str("name");
             var text = channel is null ? title : $"{title} ({channel})";
@@ -121,7 +125,7 @@ public sealed class GoogleTakeoutAdapter : ISourceAdapter
                     }
                 }
             }
-            catch (JsonException) { /* skip */ }
+            catch (JsonException) { items.Add(new Notice($"unreadable file: {Path.GetFileName(geojson)}")); }
         }
 
         // CSV saved lists carry only titles (no dates) → place entities only.
@@ -180,7 +184,7 @@ public sealed class GoogleTakeoutAdapter : ISourceAdapter
                     }));
                 }
             }
-            catch (JsonException) { /* skip */ }
+            catch (JsonException) { items.Add(new Notice($"unreadable file: {Path.GetFileName(file)}")); }
         }
 
         return items;
