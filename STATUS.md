@@ -5,7 +5,7 @@ _Last updated: 2026-06-23_
 ## What was built
 
 Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**. Complete, building,
-**30 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
+**33 tests passing**, benchmark runnable, published at https://github.com/magna-nz/backstory.
 
 - **Solution** (`Backstory.slnx`): Core, Adapters, Storage, Embeddings, Query, Mcp, Cli + Eval + Tests.
 - **Adapters**: `TelegramAdapter` (messages, contacts), `GoogleTakeoutAdapter` (Search, YouTube,
@@ -19,6 +19,9 @@ Backstory v1 — a local-first personal data-export explorer in **C# / .NET 10**
   `watch-history.json` and Spotify history (top-level arrays) stream via
   `DeserializeAsyncEnumerable`. Telegram `CanHandle` now sniffs only a prefix. Verified by tests
   that parse 100k-record fixtures (10 MB+) with peak live heap held under a quarter of the file size.
+- **Import error reporting**: adapters emit `Notice` items when they skip something (unreadable file,
+  record missing text/timestamp) instead of dropping it silently. The pipeline aggregates these into
+  `ImportStats.Skipped` + `SkippedByReason`, and the CLI prints a "Skipped N:" summary by reason.
 - **Storage**: SQLite — events + FTS5 keyword index, entities + aliases, `BruteForceVectorStore`.
 - **Embeddings**: two services behind `IEmbeddingService` (both 384-dim) —
   - `HashingEmbeddingService` (default, offline, deterministic, zero assets)

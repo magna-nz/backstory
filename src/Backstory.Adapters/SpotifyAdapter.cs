@@ -43,7 +43,11 @@ public sealed class SpotifyAdapter : ISourceAdapter
         await foreach (var record in JsonStream.ArrayAsync(file, ct))
         {
             index++;
-            if (ParseTime(record.Str("ts")) is not { } ts) continue;
+            if (ParseTime(record.Str("ts")) is not { } ts)
+            {
+                yield return new Notice("record without a usable timestamp");
+                continue;
+            }
 
             var track = record.Str("master_metadata_track_name");
             var artist = record.Str("master_metadata_album_artist_name");

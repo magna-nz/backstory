@@ -101,7 +101,14 @@ async Task<ImportStats?> ImportPath(string path, string requested)
 
     Console.WriteLine($"Imported {stats.Events} events, {stats.Entities} entities.");
     foreach (var (subType, count) in stats.BySubType.OrderByDescending(kv => kv.Value))
-        Console.WriteLine($"  {subType,-18} {count}");
+        Console.WriteLine($"  {subType,-22} {count}");
+
+    if (stats.Skipped > 0)
+    {
+        Console.WriteLine($"Skipped {stats.Skipped}:");
+        foreach (var (reason, count) in stats.SkippedByReason.OrderByDescending(kv => kv.Value))
+            Console.WriteLine($"  {count,-6} {reason}");
+    }
     return stats;
 }
 

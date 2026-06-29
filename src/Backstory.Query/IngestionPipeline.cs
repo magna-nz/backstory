@@ -6,7 +6,9 @@ public sealed record ImportStats
 {
     public int Events { get; init; }
     public int Entities { get; init; }
+    public int Skipped { get; init; }
     public IReadOnlyDictionary<string, int> BySubType { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyDictionary<string, int> SkippedByReason { get; init; } = new Dictionary<string, int>();
 }
 
 /// <summary>
@@ -23,7 +25,9 @@ public sealed class IngestionPipeline(
     {
         var eventCount = 0;
         var entityCount = 0;
+        var skipped = 0;
         var bySubType = new Dictionary<string, int>();
+        var byReason = new Dictionary<string, int>();
 
         await foreach (var item in adapter.ParseAsync(path, ct))
         {
@@ -42,9 +46,21 @@ public sealed class IngestionPipeline(
                     eventCount++;
                     bySubType[ev.SubType] = bySubType.GetValueOrDefault(ev.SubType) + 1;
                     break;
+
+                case Notice(var category):
+                    skipped++;
+                    byReason[category] = byReason.GetValueOrDefault(category) + 1;
+                    break;
             }
         }
 
-        return new ImportStats { Events = eventCount, Entities = entityCount, BySubType = bySubType };
+        return new ImportStats
+        {
+            Events = eventCount,
+            Entities = entityCount,
+            Skipped = skipped,
+            BySubType = bySubType,
+            SkippedByReason = byReason
+        };
     }
 }

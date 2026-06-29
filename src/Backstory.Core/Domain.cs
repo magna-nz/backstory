@@ -47,3 +47,10 @@ public abstract record ImportItem;
 public sealed record EntityItem(Entity Entity) : ImportItem;
 
 public sealed record EventItem(Event Event) : ImportItem;
+
+/// <summary>
+/// A diagnostic an adapter emits when it skips something (an unreadable file, a record missing a
+/// required field). The pipeline aggregates these by <paramref name="Category"/> so the user can see
+/// what was left out and why, instead of data being dropped silently.
+/// </summary>
+public sealed record Notice(string Category) : ImportItem;
