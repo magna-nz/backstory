@@ -9,7 +9,8 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!-- Library, not an Exe. The benchmark runs via `backstory eval`. Being an executable made it a
+         second entry point that `dotnet publish` of the CLI fails on (CS5001) with newer SDKs. -->
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
